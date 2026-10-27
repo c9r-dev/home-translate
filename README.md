@@ -7,15 +7,11 @@ Brings back the old "hold home → Translate" Assistant feature, fully on-device
 
 ## Download
 
-Grab the APK from the latest [release](../../releases/latest). Every push to `main` also builds one, attached to that workflow run under Artifacts.
+Grab the APK from the latest [release](../../releases/latest). 
 
 ## Releasing
 
-Push a tag like `v0.2` and the workflow builds a signed APK and publishes it as a GitHub release:
-
-```
-git tag v0.2 && git push origin v0.2
-```
+Bump the number in `VERSION` and push to `main`. The workflow builds a signed APK and publishes it as release `v<VERSION>`. Pushing a tag like `v0.4` works too. Other pushes and pull requests just build a test APK, attached to the workflow run under Artifacts.
 
 Release APKs are signed with the key in the repo secrets `SIGNING_KEYSTORE_BASE64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD`. Keep using the same key, or Android will refuse to install updates over an existing copy.
 

@@ -43,8 +43,11 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
           VERSION_CODE: ${{ github.run_number }}
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION_NAME="${GITHUB_REF_NAME#v}"; else VERSION_NAME="0.1-dev.$GITHUB_RUN_NUMBER"; fi
+          VERSION_NAME="$(tr -d '[:space:]' < VERSION)"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION_NAME="${GITHUB_REF_NAME#v}"
+          elif [[ "$GITHUB_REF" != refs/heads/main ]]; then VERSION_NAME="$VERSION_NAME-dev.$GITHUB_RUN_NUMBER"; fi
           export VERSION_NAME
+          echo "VERSION_NAME=$VERSION_NAME" >> "$GITHUB_ENV"
           gradle assembleRelease
           mv app/build/outputs/apk/release/app-release.apk "HomeTranslate-${VERSION_NAME}.apk"
           ls -l HomeTranslate-*.apk
@@ -54,8 +57,15 @@ jobs:
           name: HomeTranslate-apk
           path: HomeTranslate-*.apk
 
+      # Publish a release for a pushed v* tag, or when VERSION on main names a version not released yet
       - name: Publish GitHub release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: github.event_name == 'push' && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" HomeTranslate-*.apk --title "$GITHUB_REF_NAME" --generate-notes
+        run: |
+          tag="v$VERSION_NAME"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "Release $tag already exists; bump VERSION to publish a new one."
+          else
+            gh release create "$tag" HomeTranslate-*.apk --target "$GITHUB_SHA" --title "$tag" --generate-notes
+          fi
