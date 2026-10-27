@@ -13,10 +13,6 @@
         android:icon="@mipmap/ic_launcher"
         android:theme="@android:style/Theme.DeviceDefault.DayNight"
         android:allowBackup="false">
-        <!-- Ask Play services to fetch the OCR models when the app is installed -->
-        <meta-data
-            android:name="com.google.mlkit.vision.DEPENDENCIES"
-            android:value="ocr,ocr_chinese,ocr_japanese,ocr_korean,ocr_devanagari" />
 
 
         <activity

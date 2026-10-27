@@ -6,10 +6,6 @@ import android.graphics.Color
 import android.graphics.Rect
 import android.graphics.RectF
 import android.util.LruCache
-import com.google.android.gms.common.moduleinstall.InstallStatusListener
-import com.google.android.gms.common.moduleinstall.ModuleInstall
-import com.google.android.gms.common.moduleinstall.ModuleInstallRequest
-import com.google.android.gms.common.moduleinstall.ModuleInstallStatusUpdate
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.languageid.LanguageIdentification
 import com.google.mlkit.nl.languageid.LanguageIdentificationOptions
@@ -28,10 +24,6 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.withTimeout
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.tasks.await
@@ -54,8 +46,6 @@ object TranslateEngine {
     private val recognizers = HashMap<Script, TextRecognizer>()
     private val translators = HashMap<String, Translator>()
     private val ready = HashSet<String>()
-    private val ocrReady = HashSet<Script>()
-    private val ocrLock = Mutex()
     private val modelLock = Mutex()
     private val cache = LruCache<String, String>(500)
     private val langId by lazy {
@@ -76,61 +66,8 @@ object TranslateEngine {
         }
     }
 
-    /**
-     * The OCR models come from Google Play services rather than the APK, so make sure the one for
-     * [script] is installed before first use. Throws with a readable message if it can't be.
-     */
-    private suspend fun ensureOcr(context: Context, script: Script, onStatus: (String) -> Unit) = ocrLock.withLock {
-        if (script in ocrReady) return@withLock
-        val api = recognizer(script)
-        val client = ModuleInstall.getClient(context.applicationContext)
-        if (!client.areModulesAvailable(api).await().areModulesAvailable()) {
-            onStatus("Downloading text reader (one time)…")
-            withTimeout(120_000) {
-                suspendCancellableCoroutine<Unit> { cont ->
-                    lateinit var listener: InstallStatusListener
-                    listener = InstallStatusListener { update ->
-                        when (update.installState) {
-                            ModuleInstallStatusUpdate.InstallState.STATE_COMPLETED -> {
-                                client.unregisterListener(listener)
-                                if (cont.isActive) cont.resume(Unit)
-                            }
-                            ModuleInstallStatusUpdate.InstallState.STATE_FAILED,
-                            ModuleInstallStatusUpdate.InstallState.STATE_CANCELED -> {
-                                client.unregisterListener(listener)
-                                if (cont.isActive) cont.resumeWithException(
-                                    IllegalStateException("Couldn't download the text reader (error ${update.errorCode}). Check your connection and that Google Play services is up to date.")
-                                )
-                            }
-                            else -> {
-                                val p = update.progressInfo
-                                if (p != null && p.totalBytesToDownload > 0) {
-                                    onStatus("Downloading text reader (one time)… ${100 * p.bytesDownloaded / p.totalBytesToDownload}%")
-                                }
-                            }
-                        }
-                    }
-                    val request = ModuleInstallRequest.newBuilder().addApi(api).setListener(listener).build()
-                    client.installModules(request)
-                        .addOnSuccessListener { if (it.areModulesAlreadyInstalled() && cont.isActive) { client.unregisterListener(listener); cont.resume(Unit) } }
-                        .addOnFailureListener { e -> if (cont.isActive) { client.unregisterListener(listener); cont.resumeWithException(e) } }
-                    cont.invokeOnCancellation { client.unregisterListener(listener) }
-                }
-            }
-        }
-        ocrReady += script
-    }
-
     /** OCR a screenshot. [scale] converts bitmap pixels to screen pixels. */
-    suspend fun recognize(
-        context: Context,
-        bitmap: Bitmap,
-        scale: Float,
-        script: Script,
-        exclude: List<Rect> = emptyList(),
-        onStatus: (String) -> Unit = {},
-    ): List<SourceText> {
-        ensureOcr(context, script, onStatus)
+    suspend fun recognize(bitmap: Bitmap, scale: Float, script: Script, exclude: List<Rect> = emptyList()): List<SourceText> {
         val result = recognizer(script).process(InputImage.fromBitmap(bitmap, 0)).await()
         val cjk = script == Script.CHINESE || script == Script.JAPANESE
         return result.textBlocks.mapNotNull { block ->
@@ -164,7 +101,8 @@ object TranslateEngine {
         val sources = items.map { item ->
             async {
                 val lang = if (item.text.length < 12) dominant else identify(item.text) ?: dominant
-                lang?.let { TranslateLanguage.fromLanguageTag(it) }
+                // Drop region/script subtags (e.g. zh-Hant -> zh); romanised text like zh-Latn can't be translated.
+                lang?.takeUnless { it.endsWith("-Latn") }?.let { TranslateLanguage.fromLanguageTag(it.substringBefore('-')) }
             }
         }.awaitAll()
 

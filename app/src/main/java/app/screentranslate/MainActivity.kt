@@ -68,7 +68,7 @@ class MainActivity : Activity() {
         col.addView(spinner(langs.map { languageName(it) }, langs.indexOf(prefs.targetLang)) { prefs.targetLang = langs[it] })
 
         col.addView(heading("Text to look for"))
-        col.addView(text("Pick the writing system you usually translate from. Latin covers most European languages; the others also read Latin text."))
+        col.addView(text("Pick the writing system you usually translate from. Every option also reads Latin text (English, French, …)."))
         val scripts = Script.values().toList()
         col.addView(spinner(scripts.map { it.label }, scripts.indexOf(prefs.script)) { prefs.script = scripts[it] })
 

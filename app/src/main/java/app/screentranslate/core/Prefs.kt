@@ -6,8 +6,8 @@ import java.util.Locale
 
 /** What the OCR step looks for. Each non-Latin recognizer also reads Latin text. */
 enum class Script(val label: String) {
-    LATIN("Latin (English, French, Spanish, …)"),
-    CHINESE("Chinese"),
+    CHINESE("Chinese + Latin (default)"),
+    LATIN("Latin only (English, French, Spanish, …)"),
     JAPANESE("Japanese"),
     KOREAN("Korean"),
     DEVANAGARI("Devanagari (Hindi, Marathi, …)"),
@@ -20,9 +20,10 @@ class Prefs(context: Context) {
         get() = sp.getString("target", null) ?: defaultTarget()
         set(v) = sp.edit().putString("target", v).apply()
 
+    // New key so existing installs move off the old Latin-only default, which skipped Chinese text.
     var script: Script
-        get() = runCatching { Script.valueOf(sp.getString("script", null)!!) }.getOrDefault(Script.LATIN)
-        set(v) = sp.edit().putString("script", v.name).apply()
+        get() = runCatching { Script.valueOf(sp.getString("script2", null)!!) }.getOrDefault(Script.CHINESE)
+        set(v) = sp.edit().putString("script2", v.name).apply()
 
     var wifiOnly: Boolean
         get() = sp.getBoolean("wifiOnly", false)

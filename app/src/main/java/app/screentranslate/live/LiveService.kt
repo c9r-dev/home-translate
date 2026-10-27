@@ -237,7 +237,7 @@ class LiveService : Service() {
                 dirty = false
                 updateNotification("Translating…")
                 val items = try {
-                    TranslateEngine.recognize(this@LiveService, cur, 1f, prefs.script, listOfNotNull(bubbleRect())) { updateNotification(it) }
+                    TranslateEngine.recognize(cur, 1f, prefs.script, listOfNotNull(bubbleRect()))
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {

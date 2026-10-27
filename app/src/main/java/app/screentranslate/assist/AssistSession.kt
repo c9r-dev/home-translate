@@ -230,9 +230,7 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
             val items = if (bmp != null) {
                 setStatus("Reading screen…")
                 val ocr = try {
-                    TranslateEngine.recognize(context, bmp, view.screenshotScale, prefs.script) { msg ->
-                        scope.launch { setStatus(msg) }
-                    }
+                    TranslateEngine.recognize(bmp, view.screenshotScale, prefs.script)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
