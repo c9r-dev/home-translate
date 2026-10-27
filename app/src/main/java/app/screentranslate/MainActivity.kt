@@ -50,14 +50,14 @@ class MainActivity : Activity() {
         }
         setContentView(scroll)
 
-        col.addView(text("Screen Translate", 26f, bold = true))
+        col.addView(text("Home Translate", 26f, bold = true))
         col.addView(text("Hold the home button (or the gesture bar) to translate whatever is on screen, on your phone, with no account."))
 
         col.addView(heading("1. Make it your assistant"))
         assistantStatus = text("")
         col.addView(assistantStatus)
         col.addView(text(
-            "Open the settings below, choose Screen Translate as the Digital assistant app, and make sure " +
+            "Open the settings below, choose Home Translate as the Digital assistant app, and make sure " +
                 "\"Use screenshot\" is turned on.\n\nIf holding home opens Circle to Search instead, turn " +
                 "Circle to Search off (Settings › Display › Navigation bar, or search Settings for \"Circle to Search\")."
         ))
@@ -93,7 +93,7 @@ class MainActivity : Activity() {
         super.onResume()
         val held = Build.VERSION.SDK_INT >= 29 &&
             getSystemService(RoleManager::class.java).isRoleHeld(RoleManager.ROLE_ASSISTANT)
-        assistantStatus.text = if (held) "✓ Screen Translate is your assistant. Hold home to try it."
+        assistantStatus.text = if (held) "✓ Home Translate is your assistant. Hold home to try it."
         else "Not set as your assistant yet."
         liveButton.text = if (LiveService.running) "Stop live translate" else "Start live translate"
     }

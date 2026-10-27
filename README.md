@@ -1,4 +1,4 @@
-# Screen Translate
+# Home Translate
 
 Brings back the old "hold home → Translate" Assistant feature, fully on-device (ML Kit OCR + ML Kit Translate).
 
@@ -7,7 +7,7 @@ Brings back the old "hold home → Translate" Assistant feature, fully on-device
 
 ## Download
 
-Grab the APK from the latest [release](../../releases/latest). 
+Grab the APK from the latest [release](../../releases/latest).
 
 ## Releasing
 
@@ -22,6 +22,6 @@ Needs JDK 17+ and the Android SDK (platform 35). `gradle assembleRelease` (Gradl
 ## Setup on the phone
 
 1. Install the APK (allow installs from your browser/files app).
-2. Open Screen Translate → "Open assistant settings" → set **Digital assistant app** to Screen Translate and turn on **Use screenshot**.
+2. Open Home Translate → "Open assistant settings" → set **Digital assistant app** to Home Translate and turn on **Use screenshot**.
 3. If holding home opens Circle to Search, switch Circle to Search off.
 4. Pick your target language. Each language pair downloads ~30 MB once, then works offline.

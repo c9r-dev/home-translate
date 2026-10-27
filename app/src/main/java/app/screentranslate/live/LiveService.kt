@@ -270,7 +270,7 @@ class LiveService : Service() {
             // Android only lets touches pass through another app's overlay when it is at most 80% opaque.
             alpha = 0.8f
             if (Build.VERSION.SDK_INT >= 28) layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            title = "Screen Translate overlay"
+            title = "Home Translate overlay"
         }
         wm.addView(v, lp)
         overlay = v

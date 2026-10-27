@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "ScreenTranslate"
+rootProject.name = "HomeTranslate"
 include(":app")
