@@ -19,7 +19,13 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
+import android.widget.Toast
 import app.screentranslate.core.Prefs
+import app.screentranslate.core.TranslateEngine
+import com.google.mlkit.common.model.DownloadConditions
+import com.google.mlkit.common.model.RemoteModelManager
+import com.google.mlkit.nl.translate.TranslateLanguage
+import com.google.mlkit.nl.translate.TranslateRemoteModel
 import app.screentranslate.core.Script
 import app.screentranslate.core.allLanguages
 import app.screentranslate.core.languageName
@@ -31,6 +37,8 @@ class MainActivity : Activity() {
     private lateinit var prefs: Prefs
     private lateinit var assistantStatus: TextView
     private lateinit var liveButton: Button
+    private lateinit var packList: LinearLayout
+    private val models = RemoteModelManager.getInstance()
 
     private fun dp(v: Int) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
 
@@ -77,7 +85,27 @@ class MainActivity : Activity() {
             isChecked = prefs.wifiOnly
             setOnCheckedChangeListener { _, c -> prefs.wifiOnly = c }
         })
-        col.addView(text("Each language pair downloads once (about 30 MB) the first time you use it. After that, translation works offline."))
+
+        col.addView(heading("Language packs"))
+        col.addView(text(
+            "Each language needs a pack (about 30 MB) to translate offline. Packs download automatically the first " +
+                "time you need one, or you can get them here. They stay through app updates."
+        ))
+        packList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        col.addView(packList)
+        val addable = allLanguages().filter { it != TranslateLanguage.ENGLISH }
+        var toAdd = addable.firstOrNull()
+        col.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(spinner(addable.map { languageName(it) }, 0) { toAdd = addable[it] },
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(Button(this@MainActivity).apply {
+                text = "Download"
+                isAllCaps = false
+                setOnClickListener { toAdd?.let { downloadPack(it, this) } }
+            })
+        })
+        refreshPacks()
 
         col.addView(heading("3. Live translate (beta)"))
         col.addView(text(
@@ -96,6 +124,52 @@ class MainActivity : Activity() {
         assistantStatus.text = if (held) "✓ Home Translate is your assistant. Hold home to try it."
         else "Not set as your assistant yet."
         liveButton.text = if (LiveService.running) "Stop live translate" else "Start live translate"
+    }
+
+    private fun refreshPacks() {
+        models.getDownloadedModels(TranslateRemoteModel::class.java).addOnSuccessListener { downloaded ->
+            if (isFinishing) return@addOnSuccessListener
+            packList.removeAllViews()
+            val langs = downloaded.map { it.language }.sortedBy { languageName(it) }
+            if (langs.isEmpty()) packList.addView(text("No packs downloaded yet."))
+            for (lang in langs) {
+                packList.addView(LinearLayout(this).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    addView(text("✓ " + languageName(lang)), LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                    // English is the bridge between every other pair, so keep it.
+                    if (lang != TranslateLanguage.ENGLISH) addView(Button(this@MainActivity, null, android.R.attr.borderlessButtonStyle).apply {
+                        text = "Delete"
+                        isAllCaps = false
+                        setOnClickListener { deletePack(lang) }
+                    })
+                })
+            }
+        }
+    }
+
+    private fun downloadPack(lang: String, button: Button) {
+        button.isEnabled = false
+        button.text = "Downloading…"
+        val conditions = DownloadConditions.Builder().apply { if (prefs.wifiOnly) requireWifi() }.build()
+        models.download(TranslateRemoteModel.Builder(lang).build(), conditions)
+            .addOnSuccessListener { Toast.makeText(this, "${languageName(lang)} downloaded", Toast.LENGTH_SHORT).show() }
+            .addOnFailureListener {
+                val why = if (prefs.wifiOnly) " (Wi-Fi only is on)" else ""
+                Toast.makeText(this, "Couldn't download ${languageName(lang)}$why", Toast.LENGTH_LONG).show()
+            }
+            .addOnCompleteListener {
+                button.isEnabled = true
+                button.text = "Download"
+                refreshPacks()
+            }
+    }
+
+    private fun deletePack(lang: String) {
+        models.deleteDownloadedModel(TranslateRemoteModel.Builder(lang).build()).addOnCompleteListener {
+            TranslateEngine.forgetModels()
+            refreshPacks()
+        }
     }
 
     private fun toggleLive() {

@@ -127,6 +127,13 @@ object TranslateEngine {
     private suspend fun identify(text: String): String? =
         runCatching { langId.identifyLanguage(text).await() }.getOrNull()?.takeIf { it != "und" }
 
+    /** Call after a language pack is deleted, so the next translation downloads it again. */
+    fun forgetModels() = synchronized(translators) {
+        ready.clear()
+        translators.values.forEach { it.close() }
+        translators.clear()
+    }
+
     private fun translator(src: String, target: String): Translator = synchronized(translators) {
         translators.getOrPut("$src>$target") {
             Translation.getClient(
