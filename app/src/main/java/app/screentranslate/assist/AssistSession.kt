@@ -100,7 +100,7 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
             setPadding(dp(6), dp(6), dp(6), dp(6))
             background = pill(0xF0202124.toInt())
         }
-        langButton = barButton("→ " + languageName(prefs.targetLang)) { pickLanguage(it) }
+        langButton = barButton(langLabel()) { pickLanguage(it) }
         bar.addView(langButton)
         bar.addView(barButton("Original") {}.apply {
             setOnTouchListener { v, e ->
@@ -147,7 +147,7 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         isShowing = true
-        langButton.text = "→ " + languageName(prefs.targetLang)
+        langButton.text = langLabel()
         val early = shot
         if (early != null) { showShot(early); return } // screenshot arrived before onShow
         view.screenshot = null
@@ -230,7 +230,7 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
             val items = if (bmp != null) {
                 setStatus("Reading screen…")
                 val ocr = try {
-                    TranslateEngine.recognize(bmp, view.screenshotScale, prefs.script)
+                    TranslateEngine.read(context, bmp, view.screenshotScale) { msg -> scope.launch { setStatus(msg) } }
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -277,13 +277,28 @@ class AssistSession(context: Context) : VoiceInteractionSession(context) {
         status.visibility = if (msg == null) View.GONE else View.VISIBLE
     }
 
+    private fun langLabel() = (prefs.sourceLang?.let { languageName(it) } ?: "Auto") + " → " + languageName(prefs.targetLang)
+
+    /** "Translate from" (auto-detect or a fixed language) and "Translate to", as two submenus. */
     private fun pickLanguage(anchor: View) {
         val langs = allLanguages()
+        val from = 1
+        val to = 2
         PopupMenu(context, anchor).apply {
-            langs.forEachIndexed { i, code -> menu.add(0, i, i, languageName(code)) }
+            menu.addSubMenu("Translate from").apply {
+                add(from, -1, 0, "Detect automatically")
+                langs.forEachIndexed { i, code -> add(from, i, i + 1, languageName(code)) }
+            }
+            menu.addSubMenu("Translate to").apply {
+                langs.forEachIndexed { i, code -> add(to, i, i, languageName(code)) }
+            }
             setOnMenuItemClickListener {
-                prefs.targetLang = langs[it.itemId]
-                langButton.text = "→ " + languageName(prefs.targetLang)
+                when (it.groupId) {
+                    from -> prefs.sourceLang = if (it.itemId < 0) null else langs[it.itemId]
+                    to -> prefs.targetLang = langs[it.itemId]
+                    else -> return@setOnMenuItemClickListener false
+                }
+                langButton.text = langLabel()
                 run()
                 true
             }

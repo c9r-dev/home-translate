@@ -75,6 +75,17 @@ class MainActivity : Activity() {
         val langs = allLanguages()
         col.addView(spinner(langs.map { languageName(it) }, langs.indexOf(prefs.targetLang)) { prefs.targetLang = langs[it] })
 
+        col.addView(heading("Translate from"))
+        col.addView(text(
+            "Normally the language is detected for you. Pick one if detection gets it wrong. Thai, Russian, Arabic, " +
+                "Greek, Hebrew and other scripts need picking here, because the automatic text reader can't read them. " +
+                "You can also change this from the hold-home screen."
+        ))
+        val sources = listOf<String?>(null) + langs
+        col.addView(spinner(sources.map { it?.let(::languageName) ?: "Detect automatically" }, sources.indexOf(prefs.sourceLang)) {
+            prefs.sourceLang = sources[it]
+        })
+
         col.addView(heading("Text to look for"))
         col.addView(text("Pick the writing system you usually translate from. Every option also reads Latin text (English, French, …)."))
         val scripts = Script.values().toList()

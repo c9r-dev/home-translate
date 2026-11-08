@@ -25,6 +25,11 @@ class Prefs(context: Context) {
         get() = runCatching { Script.valueOf(sp.getString("script2", null)!!) }.getOrDefault(Script.CHINESE)
         set(v) = sp.edit().putString("script2", v.name).apply()
 
+    /** Language to translate from, or null to detect it. */
+    var sourceLang: String?
+        get() = sp.getString("source", null)
+        set(v) = sp.edit().putString("source", v).apply()
+
     var wifiOnly: Boolean
         get() = sp.getBoolean("wifiOnly", false)
         set(v) = sp.edit().putBoolean("wifiOnly", v).apply()

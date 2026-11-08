@@ -66,6 +66,31 @@ object TranslateEngine {
         }
     }
 
+    /**
+     * Read the text on a screenshot with whichever OCR fits the chosen source language: Tesseract
+     * for scripts ML Kit can't read, otherwise the ML Kit recognizer for that script.
+     */
+    suspend fun read(
+        context: Context,
+        bitmap: Bitmap,
+        scale: Float,
+        exclude: List<Rect> = emptyList(),
+        onStatus: (String) -> Unit = {},
+    ): List<SourceText> {
+        val prefs = Prefs(context)
+        val src = prefs.sourceLang
+        if (TesseractOcr.handles(src)) return TesseractOcr.recognize(context, src!!, bitmap, scale, exclude, onStatus)
+        val script = when (src) {
+            null -> prefs.script
+            TranslateLanguage.CHINESE -> Script.CHINESE
+            TranslateLanguage.JAPANESE -> Script.JAPANESE
+            TranslateLanguage.KOREAN -> Script.KOREAN
+            TranslateLanguage.HINDI, TranslateLanguage.MARATHI -> Script.DEVANAGARI
+            else -> Script.LATIN
+        }
+        return recognize(bitmap, scale, script, exclude)
+    }
+
     /** OCR a screenshot. [scale] converts bitmap pixels to screen pixels. */
     suspend fun recognize(bitmap: Bitmap, scale: Float, script: Script, exclude: List<Rect> = emptyList()): List<SourceText> {
         val result = recognizer(script).process(InputImage.fromBitmap(bitmap, 0)).await()
@@ -97,8 +122,9 @@ object TranslateEngine {
         onStatus: (String) -> Unit,
     ): List<RenderBlock> = coroutineScope {
         if (items.isEmpty()) return@coroutineScope emptyList()
-        val dominant = identify(items.joinToString("\n") { it.text })
-        val sources = items.map { item ->
+        val forced = Prefs(context).sourceLang
+        val dominant = if (forced != null) null else identify(items.joinToString("\n") { it.text })
+        val sources = if (forced != null) items.map { forced } else items.map { item ->
             async {
                 val lang = if (item.text.length < 12) dominant else identify(item.text) ?: dominant
                 // Drop region/script subtags (e.g. zh-Hant -> zh); romanised text like zh-Latn can't be translated.
